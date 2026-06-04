@@ -208,9 +208,9 @@ class BrowserController:
         except:
             pass
     
-    async def capture_homepage(self, url: str, screenshot_path: str, step_callback=None) -> dict:
+    async def capture_homepage(self, url: str, screenshot_path: str, platform: str = "xhs", step_callback=None) -> dict:
         """
-        打开小红书主页并截图
+        打开博主主页并截图
         """
         await self._emit_step(step_callback, "初始化浏览器")
         await self.init_browser()
@@ -229,12 +229,15 @@ class BrowserController:
             # 等待页面加载完成
             await asyncio.sleep(2)
 
-            await self._emit_step(step_callback, "关闭登录弹窗")
-            closed_login_modal = await self._close_login_modal(page)
-            if closed_login_modal:
-                await self._emit_step(step_callback, "登录弹窗已关闭")
+            if platform == "douyin":
+                await self._emit_step(step_callback, "检查抖音登录状态")
             else:
-                await self._emit_step(step_callback, "未发现登录弹窗")
+                await self._emit_step(step_callback, "关闭登录弹窗")
+                closed_login_modal = await self._close_login_modal(page)
+                if closed_login_modal:
+                    await self._emit_step(step_callback, "登录弹窗已关闭")
+                else:
+                    await self._emit_step(step_callback, "未发现登录弹窗")
             
             await self._emit_step(step_callback, "检查页面状态")
             # 1. 检查可见页面状态。不要用完整HTML，脚本里会包含各种错误文案模板，容易误判。
@@ -245,6 +248,14 @@ class BrowserController:
                 body_text = ""
             page_url = page.url
             page_text = f"{title} {body_text}"
+
+            if platform == "douyin" and self._is_douyin_login_required(page_url, page_text):
+                return {
+                    "success": False,
+                    "error": "需要登录抖音",
+                    "need_login": True,
+                    "screenshot_path": None
+                }
 
             verification_keywords = ["扫码认证", "扫码验证", "安全验证", "身份验证", "请完成验证"]
             if any(kw in page_text for kw in verification_keywords):
@@ -397,6 +408,25 @@ class BrowserController:
             pass
 
         return closed
+
+    def _is_douyin_login_required(self, page_url: str, page_text: str) -> bool:
+        """判断抖音主页是否被登录页/登录弹窗拦住。"""
+        if "login" in page_url:
+            return True
+
+        login_keywords = [
+            "登录后可查看更多",
+            "登录后",
+            "请先登录",
+            "扫码登录",
+            "验证码登录",
+            "手机号登录",
+            "密码登录",
+            "抖音登录",
+            "登录抖音",
+            "点击登录",
+        ]
+        return any(keyword in page_text for keyword in login_keywords)
     
     async def wait_for_login(self, timeout: int = 120) -> bool:
         """等待用户手动登录"""
@@ -442,8 +472,8 @@ class BrowserController:
 # 全局浏览器控制器实例
 browser_controller = BrowserController()
 
-async def capture_homepage(url: str, screenshot_path: str, step_callback=None) -> dict:
-    return await browser_controller.capture_homepage(url, screenshot_path, step_callback)
+async def capture_homepage(url: str, screenshot_path: str, platform: str = "xhs", step_callback=None) -> dict:
+    return await browser_controller.capture_homepage(url, screenshot_path, platform, step_callback)
 
 async def init_browser():
     await browser_controller.init_browser()

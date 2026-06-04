@@ -148,6 +148,10 @@ def api_upload():
         return jsonify({"success": False, "error": "只支持.xlsx和.xls格式"}), 400
     
     try:
+        platform = request.form.get("platform", "xhs")
+        if platform not in ("xhs", "douyin"):
+            return jsonify({"success": False, "error": "平台参数无效"}), 400
+
         # 保存文件
         # secure_filename 会破坏中文文件名和扩展名，改用时间戳+原始扩展名
         original_name = file.filename
@@ -158,7 +162,7 @@ def api_upload():
         file.save(file_path)
         
         # 读取链接
-        links = read_excel_links(file_path)
+        links = read_excel_links(file_path, platform)
         
         return jsonify({
             "success": True,
@@ -166,6 +170,7 @@ def api_upload():
             "original_filename": original_name,
             "file_path": file_path,
             "link_count": len(links),
+            "platform": platform,
             "links": [l["link"] for l in links[:5]],  # 预览前5个
             "has_more": len(links) > 5
         })
@@ -195,6 +200,7 @@ def api_start_screening():
     file_path = data.get("file_path")
     filter_prompt = data.get("filter_prompt", "")
     analysis_mode = data.get("analysis_mode", "ocr")
+    platform = data.get("platform", "xhs")
     
     if not file_path or not os.path.exists(file_path):
         return jsonify({"success": False, "error": "文件不存在"}), 400
@@ -204,6 +210,9 @@ def api_start_screening():
 
     if analysis_mode not in ("ocr", "vision"):
         return jsonify({"success": False, "error": "分析方式无效"}), 400
+
+    if platform not in ("xhs", "douyin"):
+        return jsonify({"success": False, "error": "平台参数无效"}), 400
     
     # 创建任务
     task_id = str(uuid.uuid4())
@@ -219,6 +228,7 @@ def api_start_screening():
         "file_path": file_path,
         "filter_prompt": filter_prompt,
         "analysis_mode": analysis_mode,
+        "platform": platform,
         "login_confirmed": False
     }
     
@@ -266,7 +276,9 @@ async def run_screening_task(task_id: str):
         
         # 读取固定格式链接；已经填写“是否合适”的行会跳过，用于断点续跑
         ensure_fixed_format_headers(task["file_path"])
-        links = read_fixed_format_links(task["file_path"])
+        platform = task.get("platform", "xhs")
+        platform_label = "抖音" if platform == "douyin" else "小红书"
+        links = read_fixed_format_links(task["file_path"], platform)
         task["total"] = len(links)
         
         if len(links) == 0:
@@ -299,6 +311,7 @@ async def run_screening_task(task_id: str):
                 capture_result = await capture_homepage(
                     link,
                     screenshot_path,
+                    platform,
                     lambda step, current_idx=idx: task.update({
                         "current_step": f"第 {current_idx + 1}/{len(links)} 条：{step}"
                     })
@@ -328,7 +341,7 @@ async def run_screening_task(task_id: str):
                         # 需要登录
                         task["status"] = "need_login"
                         task["current_step"] = "等待登录/认证"
-                        task["error"] = "需要登录/扫码认证。请在已打开的Chrome窗口完成后，点击“我已登录，继续运行”。"
+                        task["error"] = f"需要登录/认证{platform_label}。请在已打开的Chrome窗口完成后，点击“我已登录，继续运行”。"
                         
                         if await wait_for_user_login_confirmation(task):
                             task["status"] = "running"
@@ -337,6 +350,7 @@ async def run_screening_task(task_id: str):
                             capture_result = await capture_homepage(
                                 link,
                                 screenshot_path,
+                                platform,
                                 lambda step, current_idx=idx: task.update({
                                     "current_step": f"第 {current_idx + 1}/{len(links)} 条：{step}"
                                 })
@@ -351,6 +365,7 @@ async def run_screening_task(task_id: str):
                                         capture_result = await capture_homepage(
                                             link,
                                             screenshot_path,
+                                            platform,
                                             lambda step, current_idx=idx: task.update({
                                                 "current_step": f"第 {current_idx + 1}/{len(links)} 条：{step}"
                                             })
@@ -368,13 +383,14 @@ async def run_screening_task(task_id: str):
                         if is_rate_limited_error(error_msg):
                             task["status"] = "rate_limited"
                             task["current_step"] = "访问过于频繁，暂停3分钟"
-                            task["error"] = "小红书提示操作过于频繁，已暂停3分钟后自动重试"
+                            task["error"] = f"{platform_label}提示操作过于频繁，已暂停3分钟后自动重试"
                             await asyncio.sleep(180)
                             task["status"] = "running"
                             task["current_step"] = "暂停结束，重试截图"
                             capture_result = await capture_homepage(
                                 link,
                                 screenshot_path,
+                                platform,
                                 lambda step, current_idx=idx: task.update({
                                     "current_step": f"第 {current_idx + 1}/{len(links)} 条：{step}"
                                 })
@@ -383,13 +399,14 @@ async def run_screening_task(task_id: str):
                                 pass
                             elif capture_result.get("need_login"):
                                 task["status"] = "need_login"
-                                task["error"] = "需要扫码认证/登录，请完成后点击“我已登录，继续运行”。"
+                                task["error"] = f"需要{platform_label}认证/登录，请完成后点击“我已登录，继续运行”。"
                                 if await wait_for_user_login_confirmation(task):
                                     task["status"] = "running"
                                     task["current_step"] = "登录确认完成，重试截图"
                                     capture_result = await capture_homepage(
                                         link,
                                         screenshot_path,
+                                        platform,
                                         lambda step, current_idx=idx: task.update({
                                             "current_step": f"第 {current_idx + 1}/{len(links)} 条：{step}"
                                         })
@@ -497,7 +514,7 @@ async def run_screening_task(task_id: str):
                 if is_rate_limited_error(str(e)):
                     task["status"] = "rate_limited"
                     task["current_step"] = "访问过于频繁，暂停3分钟"
-                    task["error"] = "小红书提示操作过于频繁，已暂停3分钟后自动重试"
+                    task["error"] = f"{platform_label}提示操作过于频繁，已暂停3分钟后自动重试"
                     await asyncio.sleep(180)
                     task["status"] = "running"
                     continue
@@ -835,7 +852,7 @@ if __name__ == '__main__':
     Config.ensure_dirs()
     
     print("\n" + "=" * 50)
-    print("   🎯 小红书博主筛选工具已启动！")
+    print("   🎯 博主筛选工具箱已启动！")
     print("=" * 50)
     print(f"\n📌 本地访问: http://localhost:{Config.PORT}")
     print("\n💡 提示：未登录时会尝试自动关闭小红书登录提示卡；安全验证需要人工处理。\n")

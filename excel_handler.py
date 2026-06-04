@@ -19,6 +19,15 @@ FIXED_COLUMNS = {
 
 FIXED_HEADERS = ["昵称", "主页链接", "主页截图", "是否合适", "理由", "备注"]
 
+PLATFORM_DOMAINS = {
+    "xhs": ("xiaohongshu.com", "xhslink.com"),
+    "douyin": ("douyin.com", "iesdouyin.com"),
+}
+
+
+def get_platform_domains(platform: str = "xhs") -> tuple[str, ...]:
+    return PLATFORM_DOMAINS.get(platform, PLATFORM_DOMAINS["xhs"])
+
 
 def _image_starts_at(image, row: int, column: int) -> bool:
     """判断工作表图片是否锚定在指定单元格。"""
@@ -37,24 +46,26 @@ def _image_starts_at(image, row: int, column: int) -> bool:
     return anchor_from.row == row - 1 and anchor_from.col == column - 1
 
 
-def get_cell_link(cell) -> str:
+def get_cell_link(cell, platform: str = "xhs") -> str:
     """从单元格提取链接（支持文本和超链接）"""
+    domains = get_platform_domains(platform)
+
     # 1. 检查超链接
     if cell.hyperlink and cell.hyperlink.target:
         try:
             target = cell.hyperlink.target
-            if "xiaohongshu.com" in str(target):
+            if any(domain in str(target) for domain in domains):
                 return str(target).strip()
         except:
             pass
             
     # 2. 检查单元格文本
-    if cell.value and "xiaohongshu.com" in str(cell.value):
+    if cell.value and any(domain in str(cell.value) for domain in domains):
         return str(cell.value).strip()
     return None
 
 
-def read_excel_links(file_path: str) -> list[dict]:
+def read_excel_links(file_path: str, platform: str = "xhs") -> list[dict]:
     """
     读取Excel文件中的链接列表
     
@@ -80,13 +91,13 @@ def read_excel_links(file_path: str) -> list[dict]:
             
         # 2. 检查第一行（如果没有表头，第一行可能是数据）
         first_cell = sheet.cell(row=1, column=col)
-        if get_cell_link(first_cell):
+        if get_cell_link(first_cell, platform):
             link_col = col
             break
             
         # 3. 检查第二行（如果有表头，第二行是数据）
         second_cell = sheet.cell(row=2, column=col)
-        if get_cell_link(second_cell):
+        if get_cell_link(second_cell, platform):
             link_col = col
             break
     
@@ -97,11 +108,11 @@ def read_excel_links(file_path: str) -> list[dict]:
     # 读取链接数据
     # 如果第一行看起来像链接，从第一行开始；否则从第二行开始
     first_cell = sheet.cell(row=1, column=link_col)
-    start_row = 1 if get_cell_link(first_cell) else 2
+    start_row = 1 if get_cell_link(first_cell, platform) else 2
     
     for row in range(start_row, sheet.max_row + 1):
         cell = sheet.cell(row=row, column=link_col)
-        link = get_cell_link(cell)
+        link = get_cell_link(cell, platform)
         
         if link:
             links.append({
@@ -113,7 +124,7 @@ def read_excel_links(file_path: str) -> list[dict]:
     return links
 
 
-def read_fixed_format_links(file_path: str) -> list[dict]:
+def read_fixed_format_links(file_path: str, platform: str = "xhs") -> list[dict]:
     """
     读取固定格式Excel：
     昵称、主页链接、主页截图、是否合适、理由、备注
@@ -125,7 +136,7 @@ def read_fixed_format_links(file_path: str) -> list[dict]:
 
     for row in range(1, sheet.max_row + 1):
         link_cell = sheet.cell(row=row, column=FIXED_COLUMNS["link"])
-        link = get_cell_link(link_cell)
+        link = get_cell_link(link_cell, platform)
         if not link:
             continue
 

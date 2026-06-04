@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小红书博主工具箱</title>
-    <link rel="stylesheet" href="/static/style.css?v=11">
+    <title>博主筛选工具箱</title>
+    <link rel="stylesheet" href="/static/style.css?v=12">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
@@ -15,7 +15,7 @@
         <header class="header">
             <div class="logo">
                 <span class="logo-icon">📱</span>
-                <h1>小红书博主工具箱</h1>
+                <h1>博主筛选工具箱</h1>
             </div>
             <div class="connection-status" id="connectionStatus">
                 <span class="status-dot"></span>
@@ -68,6 +68,21 @@
                         <span class="icon">🎯</span>
                         筛选条件
                     </h2>
+                    <div class="analysis-mode-group">
+                        <div class="analysis-mode-label">筛选平台</div>
+                        <div class="analysis-mode-toggle" role="radiogroup" aria-label="筛选平台">
+                            <label class="analysis-option active">
+                                <input type="radio" name="platform" value="xhs" checked>
+                                <span class="option-title">小红书</span>
+                                <span class="option-desc">未登录时尝试关闭登录提示卡</span>
+                            </label>
+                            <label class="analysis-option">
+                                <input type="radio" name="platform" value="douyin">
+                                <span class="option-title">抖音</span>
+                                <span class="option-desc">必须登录账号后截图分析</span>
+                            </label>
+                        </div>
+                    </div>
                     <button class="btn btn-secondary btn-prompt-settings" id="promptSettingsBtn">
                         <span class="btn-icon">⚙️</span>
                         调整AI提示词
@@ -116,10 +131,10 @@
                     </h2>
                     <div class="collect-info">
                         <ul>
-                            <li><strong>采集内容：</strong>仅采集粉丝数</li>
+                            <li><strong>采集内容：</strong>仅采集小红书粉丝数</li>
                             <li><strong>自动跳过：</strong>遇到封禁/异常账号自动跳过并标记</li>
-                            <li><strong>反检测：</strong>每个页面随机间隔3~8秒，每10个链接休息30~60秒</li>
-                            <li><strong>首次使用：</strong>需要在弹出的浏览器中扫码登录小红书</li>
+                            <li><strong>反检测：</strong>每个页面随机间隔1~3秒，每20个链接休息10~20秒</li>
+                            <li><strong>登录说明：</strong>如遇安全验证，请在弹出的浏览器中处理后继续</li>
                         </ul>
                     </div>
                 </div>
@@ -236,10 +251,10 @@
         <div class="modal" id="loginModal" style="display: none;">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h3>🔐 需要登录小红书</h3>
+                    <h3>🔐 需要登录/认证</h3>
                 </div>
                 <div class="modal-body">
-                    <p id="loginModalMessage">请在弹出的浏览器窗口中扫码登录小红书</p>
+                    <p id="loginModalMessage">请在弹出的浏览器窗口中完成登录或认证</p>
                     <div class="login-spinner">
                         <div class="spinner"></div>
                         <p>完成后点击下方按钮继续</p>
@@ -277,7 +292,7 @@
         </div>
     </div>
 
-    <script src="/static/script.js?v=11"></script>
+    <script src="/static/script.js?v=12"></script>
 </body>
 
 </html>

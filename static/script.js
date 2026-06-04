@@ -1,15 +1,15 @@
 /**
- * 小红书博主工具箱 - 前端交互逻辑
+ * 博主筛选工具箱 - 前端交互逻辑
  * 支持两种模式：AI筛选 和 数据采集
  */
 
 // 全局状态
-const DEFAULT_FILTER_PROMPT = `筛选目标：寻找财经类小红书博主。
+const DEFAULT_FILTER_PROMPT = `筛选目标：寻找财经类社交平台博主。
 
 合适的账号应满足：
 1. 主页截图或OCR文字中能看到明确财经相关线索，例如：股票、基金、ETF、A股、港股、美股、投资、理财、资产配置、宏观经济、财报、公司分析、行业研究、商业模式、消费/科技/医药/新能源等行业投资分析，或者分享自己的每日投资心得（理财APP截图）。
 2. 内容不是偶尔提到“赚钱/副业/职场/经纪人”，而是持续围绕财经、投资、市场、公司或产业分析展开。
-3. 笔记标题、封面文字、账号简介、可见话题中至少有两类证据指向财经内容；如果只有一个模糊词，请保守判断为不合适。
+3. 作品/笔记标题、封面文字、账号简介、可见话题中至少有两类证据指向财经内容；如果只有一个模糊词，请保守判断为不合适。
 4. 优先选择有观点、有分析、有数据或案例拆解的账号。
 
 不合适的账号包括：
@@ -21,6 +21,7 @@ const DEFAULT_FILTER_PROMPT = `筛选目标：寻找财经类小红书博主。
 
 const state = {
     mode: 'screening',     // 'screening' 或 'collecting'
+    platform: 'xhs',       // 'xhs' 或 'douyin'
     analysisMode: 'vision', // 'vision' 或 'ocr'
     uploadedFile: null,
     filePath: null,
@@ -45,6 +46,7 @@ const elements = {
     reuploadBtn: document.getElementById('reuploadBtn'),
     filterCard: document.getElementById('filterCard'),
     collectInfoCard: document.getElementById('collectInfoCard'),
+    platformOptions: document.querySelectorAll('input[name="platform"]'),
     analysisOptions: document.querySelectorAll('input[name="analysisMode"]'),
     filterPrompt: document.getElementById('filterPrompt'),
     saveFilterPromptBtn: document.getElementById('saveFilterPromptBtn'),
@@ -148,6 +150,9 @@ function initEventListeners() {
     // 筛选条件变化
     elements.filterPrompt.addEventListener('input', updateStartButton);
     elements.saveFilterPromptBtn.addEventListener('click', saveDefaultFilterPrompt);
+    elements.platformOptions.forEach(option => {
+        option.addEventListener('change', handlePlatformChange);
+    });
     elements.analysisOptions.forEach(option => {
         option.addEventListener('change', handleAnalysisModeChange);
     });
@@ -177,10 +182,26 @@ function initEventListeners() {
 
 function handleAnalysisModeChange(e) {
     state.analysisMode = e.target.value;
-    document.querySelectorAll('.analysis-option').forEach(option => {
-        const input = option.querySelector('input[name="analysisMode"]');
-        option.classList.toggle('active', input.value === state.analysisMode);
+    document.querySelectorAll('input[name="analysisMode"]').forEach(input => {
+        const option = input.closest('.analysis-option');
+        if (option) {
+            option.classList.toggle('active', input.value === state.analysisMode);
+        }
     });
+}
+
+function handlePlatformChange(e) {
+    state.platform = e.target.value;
+    document.querySelectorAll('input[name="platform"]').forEach(input => {
+        const option = input.closest('.analysis-option');
+        if (option) {
+            option.classList.toggle('active', input.value === state.platform);
+        }
+    });
+
+    if (state.uploadedFile) {
+        resetUpload();
+    }
 }
 
 async function loadDefaultFilterPrompt() {
@@ -413,6 +434,7 @@ async function handleFile(file) {
 
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('platform', getActivePlatform());
 
     try {
         elements.uploadPlaceholder.innerHTML = `
@@ -434,7 +456,7 @@ async function handleFile(file) {
             elements.uploadPlaceholder.style.display = 'none';
             elements.uploadSuccess.style.display = 'flex';
             elements.fileName.textContent = data.original_filename;
-            elements.linkCount.textContent = `检测到 ${data.link_count} 个小红书链接`;
+            elements.linkCount.textContent = `检测到 ${data.link_count} 个${getPlatformLabel(getActivePlatform())}链接`;
 
             updateStartButton();
         } else {
@@ -495,7 +517,7 @@ async function openBrowserForLogin() {
 
         if (data.success) {
             elements.openBrowserBtnText.textContent = '✅ 浏览器已打开';
-            elements.loginHint.textContent = '👉 请在弹出的浏览器中扫码登录，登录完成后点下方「确认已登录」';
+            elements.loginHint.textContent = '👉 请在弹出的浏览器中完成登录，登录完成后点下方「确认已登录」';
             elements.loginHint.style.color = '#fbbf24';
             // 显示确认按钮
             elements.confirmLoginBtn.style.display = 'flex';
@@ -580,7 +602,8 @@ async function startScreening() {
             body: JSON.stringify({
                 file_path: state.filePath,
                 filter_prompt: elements.filterPrompt.value.trim(),
-                analysis_mode: state.analysisMode
+                analysis_mode: state.analysisMode,
+                platform: getActivePlatform()
             })
         });
 
@@ -705,7 +728,7 @@ async function pollTaskStatus() {
                 updateStartButton();
             } else if (data.status === 'need_login') {
                 elements.loginModal.style.display = 'flex';
-                elements.loginModalMessage.textContent = data.error || '请在弹出的浏览器窗口中扫码登录小红书';
+                elements.loginModalMessage.textContent = data.error || '请在弹出的浏览器窗口中完成登录或认证';
                 elements.continueAfterLoginBtn.disabled = false;
                 elements.continueAfterLoginBtn.textContent = '我已登录，继续运行';
             } else if (data.status === 'rate_limited') {
@@ -799,6 +822,14 @@ function truncateUrl(url) {
         return url.substring(0, 40) + '...';
     }
     return url;
+}
+
+function getActivePlatform() {
+    return state.mode === 'collecting' ? 'xhs' : state.platform;
+}
+
+function getPlatformLabel(platform = getActivePlatform()) {
+    return platform === 'douyin' ? '抖音' : '小红书';
 }
 
 // ========== 任务完成 ==========

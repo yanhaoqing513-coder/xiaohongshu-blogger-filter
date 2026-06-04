@@ -69,7 +69,7 @@ class AIJudge:
         user_message = f"""## 用户筛选条件：
 {filter_prompt}
 
-请直接分析这张小红书主页截图，判断该博主是否符合筛选条件。"""
+请直接分析这张社交平台博主主页截图，判断该博主是否符合筛选条件。"""
 
         try:
             response = self._call_ollama_with_image(system_prompt, user_message, image_path)
