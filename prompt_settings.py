@@ -1,0 +1,122 @@
+"""
+AI筛选提示词配置
+"""
+import json
+import os
+
+
+DEFAULT_TEXT_SYSTEM_PROMPT = """你是一个小红书博主筛选助手。你必须把“用户筛选条件”当作唯一判断标准，逐条对照博主主页OCR文字中的账号简介、笔记标题、内容领域、风格和可见互动信息，判断该博主是否符合要求。
+
+请严格按照以下JSON格式返回结果：
+{
+    "matched": true或false,
+    "reason": "判断理由（50字以内）",
+    "content_summary": "博主内容总结（30字以内）",
+    "account_analysis": "账号分析（80字以内）"
+}
+
+注意：
+1. 只返回JSON，不要有其他内容
+2. reason必须简洁说明是否符合筛选条件的关键依据
+3. content_summary必须在30字以内，简洁概括博主的主要内容方向和风格
+4. account_analysis需要说明账号定位、财经相关证据、排除或不确定因素
+5. 如果OCR文字信息不足以确认关键条件，请保守判断为false，并在reason中说明信息不足"""
+
+
+DEFAULT_VISION_SYSTEM_PROMPT = """你是一个小红书博主筛选助手。你必须把“用户筛选条件”当作唯一判断标准，逐条对照小红书主页截图中的账号简介、笔记标题、封面文字、内容领域、视觉风格和可见互动信息，判断该博主是否符合要求。
+
+请严格按照以下JSON格式返回结果：
+{
+    "matched": true或false,
+    "reason": "判断理由（50字以内）",
+    "content_summary": "博主内容总结（30字以内）",
+    "account_analysis": "账号分析（80字以内）"
+}
+
+注意：
+1. 只返回JSON，不要有其他内容
+2. 优先分析截图中的笔记标题、封面文字、账号简介、视觉风格和互动信息
+3. 不要臆测截图外的信息
+4. account_analysis需要说明账号定位、财经相关证据、排除或不确定因素
+5. 如果截图信息不足以确认关键条件，请保守判断为false，并在reason中说明信息不足"""
+
+
+DEFAULT_FILTER_PROMPT = """筛选目标：寻找财经类小红书博主。
+
+合适的账号应满足：
+1. 主页截图或OCR文字中能看到明确财经相关线索，例如：股票、基金、ETF、A股、港股、美股、投资、理财、资产配置、宏观经济、财报、公司分析、行业研究、商业模式、消费/科技/医药/新能源等行业投资分析，或者分享自己的每日投资心得（理财APP截图）。
+2. 内容不是偶尔提到“赚钱/副业/职场/经纪人”，而是持续围绕财经、投资、市场、公司或产业分析展开。
+3. 笔记标题、封面文字、账号简介、可见话题中至少有两类证据指向财经内容；如果只有一个模糊词，请保守判断为不合适。
+4. 优先选择有观点、有分析、有数据或案例拆解的账号。
+
+不合适的账号包括：
+1. 主要内容是美妆、穿搭、母婴、旅行、美食、情感、娱乐、健身、家居、留学等非财经领域。
+2. 只讲搞钱、副业、职场成长、个人IP、创业鸡汤、销售带货，非垂直财经领域账号。
+3. 纯广告、课程售卖、成功学、玄学暴富、无法从截图确认财经属性的账号。
+
+请返回：合适/不合适、判断理由；如果不合适，用6个字以内说明不合适原因；同时对合适的账号给出账号分析，概括账号定位、财经相关证据、篇均点赞数和不确定需人工判断的信息。"""
+
+
+PROMPT_FILE = os.path.join(os.path.dirname(__file__), "prompt_templates.json")
+
+
+def get_default_prompt_templates() -> dict:
+    return {
+        "text_system_prompt": DEFAULT_TEXT_SYSTEM_PROMPT,
+        "vision_system_prompt": DEFAULT_VISION_SYSTEM_PROMPT,
+        "default_filter_prompt": DEFAULT_FILTER_PROMPT,
+    }
+
+
+def load_prompt_templates() -> dict:
+    defaults = get_default_prompt_templates()
+    if not os.path.exists(PROMPT_FILE):
+        return defaults
+
+    try:
+        with open(PROMPT_FILE, "r", encoding="utf-8") as f:
+            saved = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return defaults
+
+    return {
+        "text_system_prompt": saved.get("text_system_prompt") or defaults["text_system_prompt"],
+        "vision_system_prompt": saved.get("vision_system_prompt") or defaults["vision_system_prompt"],
+        "default_filter_prompt": saved.get("default_filter_prompt") or defaults["default_filter_prompt"],
+    }
+
+
+def save_prompt_templates(text_system_prompt: str, vision_system_prompt: str) -> dict:
+    text_system_prompt = (text_system_prompt or "").strip()
+    vision_system_prompt = (vision_system_prompt or "").strip()
+
+    if not text_system_prompt:
+        raise ValueError("OCR + 文本识别提示词不能为空")
+    if not vision_system_prompt:
+        raise ValueError("大模型图片识别提示词不能为空")
+
+    data = load_prompt_templates()
+    data.update({
+        "text_system_prompt": text_system_prompt,
+        "vision_system_prompt": vision_system_prompt,
+    })
+
+    with open(PROMPT_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    return data
+
+
+def save_default_filter_prompt(default_filter_prompt: str) -> dict:
+    default_filter_prompt = (default_filter_prompt or "").strip()
+
+    if not default_filter_prompt:
+        raise ValueError("筛选条件不能为空")
+
+    data = load_prompt_templates()
+    data["default_filter_prompt"] = default_filter_prompt
+
+    with open(PROMPT_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    return data

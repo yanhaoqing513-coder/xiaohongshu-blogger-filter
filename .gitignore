@@ -1,0 +1,29 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+.env
+.venv/
+venv/
+
+uploads/
+outputs/
+screenshots/
+browser_data/
+
+*.log
+collector.log
+
+# Unrelated local utility project kept outside this app release
+bg-remover/
+
+# Local notes, not needed for public release
+小红书爬虫反爬策略分析.md
+
+# Local editor/cache files
+.idea/
+.vscode/
+*.swp
+*.swo

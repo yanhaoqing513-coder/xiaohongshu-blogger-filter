@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书博主工具箱</title>
+    <link rel="stylesheet" href="/static/style.css?v=11">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- 头部 -->
+        <header class="header">
+            <div class="logo">
+                <span class="logo-icon">📱</span>
+                <h1>小红书博主工具箱</h1>
+            </div>
+            <div class="connection-status" id="connectionStatus">
+                <span class="status-dot"></span>
+                <span class="status-text">检查连接中...</span>
+            </div>
+        </header>
+
+        <!-- 模式切换 Tab -->
+        <nav class="mode-tabs">
+            <button class="mode-tab active" data-mode="screening" id="tabScreening">
+                <span class="tab-icon">🎯</span>
+                <span class="tab-label">AI筛选</span>
+                <span class="tab-desc">上传链接，AI智能判断博主是否符合条件</span>
+            </button>
+            <button class="mode-tab" data-mode="collecting" id="tabCollecting">
+                <span class="tab-icon">📊</span>
+                <span class="tab-label">数据采集</span>
+                <span class="tab-desc">批量采集博主粉丝数、获赞等数据</span>
+            </button>
+        </nav>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 左侧：配置区 -->
+            <section class="config-section">
+                <div class="card upload-card">
+                    <h2 class="card-title">
+                        <span class="icon">📁</span>
+                        上传Excel文件
+                    </h2>
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+                        <div class="upload-placeholder" id="uploadPlaceholder">
+                            <span class="upload-icon">📊</span>
+                            <p>点击或拖拽Excel文件到这里</p>
+                            <span class="upload-hint">支持 .xlsx, .xls 格式</span>
+                        </div>
+                        <div class="upload-success" id="uploadSuccess" style="display: none;">
+                            <span class="success-icon">✅</span>
+                            <p class="file-name" id="fileName"></p>
+                            <p class="link-count" id="linkCount"></p>
+                            <button class="btn btn-text" id="reuploadBtn">重新上传</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 筛选条件（仅AI筛选模式显示） -->
+                <div class="card filter-card" id="filterCard">
+                    <h2 class="card-title">
+                        <span class="icon">🎯</span>
+                        筛选条件
+                    </h2>
+                    <button class="btn btn-secondary btn-prompt-settings" id="promptSettingsBtn">
+                        <span class="btn-icon">⚙️</span>
+                        调整AI提示词
+                    </button>
+                    <div class="analysis-mode-group">
+                        <div class="analysis-mode-label">分析方式</div>
+                        <div class="analysis-mode-toggle" role="radiogroup" aria-label="分析方式">
+                            <label class="analysis-option active">
+                                <input type="radio" name="analysisMode" value="vision" checked>
+                                <span class="option-title">大模型图片识别</span>
+                                <span class="option-desc">截图直接交给视觉模型分析</span>
+                            </label>
+                            <label class="analysis-option">
+                                <input type="radio" name="analysisMode" value="ocr">
+                                <span class="option-title">OCR + 文本识别</span>
+                                <span class="option-desc">先提取文字，再交给文本模型判断</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="filter-input-wrapper">
+                        <textarea id="filterPrompt"
+                            placeholder="请输入筛选条件，例如：筛选财经类博主，要求主页内容持续围绕股票、基金、理财、宏观经济、公司分析等主题。"
+                            rows="8"></textarea>
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn btn-secondary btn-save-filter" id="saveFilterPromptBtn">
+                            保存筛选条件
+                        </button>
+                        <span class="filter-save-status" id="filterSaveStatus"></span>
+                    </div>
+                    <div class="filter-tips">
+                        <h4>💡 筛选技巧</h4>
+                        <ul>
+                            <li>明确哪些词、封面、简介算财经相关证据</li>
+                            <li>写清楚排除项，如泛副业、职场鸡汤、纯课程售卖</li>
+                            <li>要求模型在信息不足时保守判断为不合适</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 采集说明（仅数据采集模式显示） -->
+                <div class="card collect-info-card" id="collectInfoCard" style="display: none;">
+                    <h2 class="card-title">
+                        <span class="icon">ℹ️</span>
+                        采集说明
+                    </h2>
+                    <div class="collect-info">
+                        <ul>
+                            <li><strong>采集内容：</strong>仅采集粉丝数</li>
+                            <li><strong>自动跳过：</strong>遇到封禁/异常账号自动跳过并标记</li>
+                            <li><strong>反检测：</strong>每个页面随机间隔3~8秒，每10个链接休息30~60秒</li>
+                            <li><strong>首次使用：</strong>需要在弹出的浏览器中扫码登录小红书</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 登录区域（仅数据采集模式显示） -->
+                <div id="loginArea" style="display: none;">
+                    <button class="btn btn-login" id="openBrowserBtn">
+                        <span class="btn-icon">🔑</span>
+                        <span id="openBrowserBtnText">打开浏览器登录</span>
+                    </button>
+                    <p class="login-hint" id="loginHint"
+                        style="color: #aaa; font-size: 13px; margin: 6px 0 10px; text-align: center;">⚠️
+                        请先登录小红书，登录成功后点击下方确认按钮</p>
+                    <button class="btn btn-confirm-login" id="confirmLoginBtn" style="display: none;" disabled>
+                        <span class="btn-icon">✅</span>
+                        <span id="confirmLoginBtnText">确认已登录</span>
+                    </button>
+                </div>
+
+                <button class="btn btn-primary btn-start" id="startBtn" disabled>
+                    <span class="btn-icon" id="startBtnIcon">🚀</span>
+                    <span id="startBtnText">开始筛选</span>
+                </button>
+            </section>
+
+            <!-- 右侧：结果区 -->
+            <section class="result-section">
+                <div class="card result-card">
+                    <div class="result-header">
+                        <h2 class="card-title">
+                            <span class="icon">📋</span>
+                            <span id="resultTitle">筛选结果</span>
+                        </h2>
+                        <div class="result-stats" id="resultStats" style="display: none;">
+                            <span class="stat matched" id="statMatched">
+                                <span class="stat-icon">✅</span>
+                                <span id="matchedCount">0</span> 符合
+                            </span>
+                            <span class="stat unmatched" id="statUnmatched">
+                                <span class="stat-icon">❌</span>
+                                <span id="unmatchedCount">0</span> 不符合
+                            </span>
+                            <!-- 数据采集模式的统计 -->
+                            <span class="stat" id="statCollected" style="display: none;">
+                                <span class="stat-icon">📊</span>
+                                <span id="collectedCount">0</span> 已采集
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- 进度条 -->
+                    <div class="progress-container" id="progressContainer" style="display: none;">
+                        <div class="progress-info">
+                            <span id="progressText">准备中...</span>
+                            <span id="progressPercent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                        </div>
+                        <p class="current-step" id="currentStep">当前步骤：等待开始</p>
+                        <p class="current-link" id="currentLink"></p>
+                    </div>
+
+                    <!-- 结果表格 -->
+                    <div class="result-table-container" id="resultTableContainer">
+                        <div class="empty-state" id="emptyState">
+                            <span class="empty-icon">📭</span>
+                            <p>暂无结果</p>
+                            <span class="empty-hint" id="emptyHint">上传Excel并开始筛选后，结果将显示在这里</span>
+                        </div>
+
+                        <!-- AI筛选结果表格 -->
+                        <table class="result-table" id="resultTable" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>链接</th>
+                                    <th>结果</th>
+                                    <th>判断理由</th>
+                                    <th>账号分析</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resultTableBody">
+                            </tbody>
+                        </table>
+
+                        <!-- 数据采集结果表格 -->
+                        <table class="result-table" id="collectTable" style="display: none;">
+                            <thead>
+                                <tr>
+                                    <th>序号</th>
+                                    <th>链接</th>
+                                    <th>粉丝数</th>
+                                    <th>状态</th>
+                                </tr>
+                            </thead>
+                            <tbody id="collectTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- 下载按钮 -->
+                    <div class="download-section" id="downloadSection" style="display: none;">
+                        <button class="btn btn-success" id="downloadBtn">
+                            <span class="btn-icon">📥</span>
+                            下载结果Excel
+                        </button>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 登录弹窗 -->
+        <div class="modal" id="loginModal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>🔐 需要登录小红书</h3>
+                </div>
+                <div class="modal-body">
+                    <p id="loginModalMessage">请在弹出的浏览器窗口中扫码登录小红书</p>
+                    <div class="login-spinner">
+                        <div class="spinner"></div>
+                        <p>完成后点击下方按钮继续</p>
+                    </div>
+                    <button class="btn btn-success btn-login-confirm-modal" id="continueAfterLoginBtn">
+                        我已登录，继续运行
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI提示词设置弹窗 -->
+        <div class="modal" id="promptModal" style="display: none;">
+            <div class="modal-content prompt-modal-content">
+                <div class="modal-header prompt-modal-header">
+                    <h3>AI提示词设置</h3>
+                    <button class="modal-close-btn" id="closePromptModalBtn">×</button>
+                </div>
+                <div class="modal-body prompt-modal-body">
+                    <label class="prompt-field">
+                        <span>大模型图片识别提示词</span>
+                        <textarea id="visionPromptTemplate" rows="10"></textarea>
+                    </label>
+                    <label class="prompt-field">
+                        <span>OCR + 文本识别提示词</span>
+                        <textarea id="textPromptTemplate" rows="10"></textarea>
+                    </label>
+                    <p class="prompt-save-status" id="promptSaveStatus"></p>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-text" id="cancelPromptBtn">取消</button>
+                    <button class="btn btn-primary" id="savePromptBtn">保存提示词</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js?v=11"></script>
+</body>
+
+</html>
