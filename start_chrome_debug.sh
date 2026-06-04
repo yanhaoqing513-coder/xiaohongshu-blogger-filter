@@ -26,7 +26,7 @@ if [ -d "/Applications/Google Chrome.app" ]; then
     
     echo ""
     echo "✅ 浏览器已启动！"
-    echo "💡 请在浏览器中完成登录，然后回到网页版工具开始任务。"
+    echo "💡 如遇安全验证，可在这个浏览器窗口中手动处理后回到网页版工具继续。"
 else
     echo "❌ 错误：未找到 Google Chrome 浏览器"
     exit 1

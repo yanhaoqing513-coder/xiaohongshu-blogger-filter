@@ -11,13 +11,11 @@ class Config:
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3-vl:235b-cloud")
     
-    # OpenAI配置（可选）
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-    OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-    
     # 浏览器配置
     BROWSER_HEADLESS = os.getenv("BROWSER_HEADLESS", "false").lower() == "true"
+    CHROME_PATH = os.getenv("CHROME_PATH", "")
     PAGE_LOAD_TIMEOUT = int(os.getenv("PAGE_LOAD_TIMEOUT", "30000"))
+    PORT = int(os.getenv("PORT", "5001"))
     
     # 数据采集 - 反检测配置
     COLLECT_MIN_DELAY = int(os.getenv("COLLECT_MIN_DELAY", "1"))       # 最小请求间隔（秒）

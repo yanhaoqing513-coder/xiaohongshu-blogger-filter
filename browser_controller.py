@@ -8,6 +8,7 @@ import time
 import http.client
 import json
 import threading
+import shutil
 from patchright.async_api import async_playwright, Browser, Page, TimeoutError as PlaywrightTimeoutError
 from config import Config
 
@@ -20,28 +21,36 @@ class BrowserController:
         self.user_data_dir = os.path.join(os.path.dirname(__file__), "browser_data")
         os.makedirs(self.user_data_dir, exist_ok=True)
         
-        # 自动识别操作系统并设置 Chrome 路径
+        self.chrome_path = self._resolve_chrome_path()
+            
+        self.debug_port = 9222
+        self.chrome_process = None
+
+    def _resolve_chrome_path(self) -> str:
+        """解析 Chrome/Chromium 路径，允许通过 CHROME_PATH 环境变量覆盖。"""
+        if Config.CHROME_PATH:
+            return Config.CHROME_PATH
+
         import platform
         system = platform.system()
         if system == "Darwin":
-            self.chrome_path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-        elif system == "Windows":
-            # 常见的 Windows Chrome 路径
+            return "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+
+        if system == "Windows":
             paths = [
                 os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
                 os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
                 os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe")
             ]
-            self.chrome_path = "chrome.exe" # 默认假设在 PATH 中
-            for p in paths:
-                if os.path.exists(p):
-                    self.chrome_path = p
-                    break
-        else:
-            self.chrome_path = "google-chrome" # Linux 默认
-            
-        self.debug_port = 9222
-        self.chrome_process = None
+            for path in paths:
+                if os.path.exists(path):
+                    return path
+            return "chrome.exe"
+
+        for candidate in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
+            if shutil.which(candidate):
+                return candidate
+        return "google-chrome"
 
     @property
     def loop(self):
@@ -94,6 +103,8 @@ class BrowserController:
                     "--no-first-run",
                     "--no-default-browser-check"
                 ]
+                if Config.BROWSER_HEADLESS:
+                    cmd.extend(["--headless=new", "--disable-gpu", "--no-sandbox"])
                 self.chrome_process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                 
                 # 等待端口启动

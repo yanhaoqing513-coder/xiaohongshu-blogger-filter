@@ -837,10 +837,10 @@ if __name__ == '__main__':
     print("\n" + "=" * 50)
     print("   🎯 小红书博主筛选工具已启动！")
     print("=" * 50)
-    print("\n📌 请访问: http://localhost:5001")
-    print("\n💡 提示：首次使用需要扫码登录小红书\n")
+    print(f"\n📌 本地访问: http://localhost:{Config.PORT}")
+    print("\n💡 提示：未登录时会尝试自动关闭小红书登录提示卡；安全验证需要人工处理。\n")
     
     # 将 Playwright 检查改为按需触发，不在主进程启动时阻塞
     # 仅在实际需要浏览器时才通过 init_browser 完成检查
     
-    app.run(debug=False, port=5001, threaded=True)
+    app.run(debug=False, host="0.0.0.0", port=Config.PORT, threaded=True)

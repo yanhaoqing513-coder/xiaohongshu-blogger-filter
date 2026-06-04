@@ -41,7 +41,7 @@ echo 🚀 正在启动服务...
 echo.
 echo 请访问: http://localhost:5001
 echo.
-echo 提示: 首次使用需要扫码登录小红书
+echo 提示: 未登录时会自动尝试关闭登录提示卡；安全验证需要人工处理
 echo 按 Ctrl+C 停止服务
 echo.
 

@@ -13,6 +13,13 @@
 
 ## 快速开始
 
+### 环境要求
+
+- Python 3.10+
+- Google Chrome 或 Chromium
+- Ollama 服务，且模型支持图片输入
+- 可访问小红书页面的网络环境
+
 ### 方式一：双击启动（推荐）
 
 1. 双击 `start.command` 文件
@@ -22,6 +29,10 @@
 ### 方式二：手动启动
 
 ```bash
+# 0. 拉取项目
+git clone https://github.com/yanhaoqing513-coder/xiaohongshu-blogger-filter.git
+cd xiaohongshu-blogger-filter
+
 # 1. 创建虚拟环境
 python3 -m venv venv
 source venv/bin/activate
@@ -32,7 +43,10 @@ pip install -r requirements.txt
 # 3. 安装Patchright浏览器环境
 patchright install chromium
 
-# 4. 启动服务
+# 4. 复制并修改配置
+cp .env.example .env
+
+# 5. 启动服务
 python app.py
 ```
 
@@ -47,7 +61,27 @@ OLLAMA_MODEL=qwen3-vl:235b-cloud
 
 # 浏览器配置
 BROWSER_HEADLESS=false  # 设为true可隐藏浏览器窗口
+CHROME_PATH=            # 留空时自动查找Chrome/Chromium
+
+# Web服务端口
+PORT=5001
 ```
+
+### 更换为自己的 Ollama 模型
+
+如果使用 Ollama 云端模型，先在自己的电脑完成 Ollama 登录，然后把 `.env` 中的 `OLLAMA_MODEL` 改成自己有权限的模型：
+
+```env
+OLLAMA_MODEL=qwen3-vl:235b-cloud
+```
+
+如果使用本地视觉模型，可以改成：
+
+```env
+OLLAMA_MODEL=qwen3-vl:8b
+```
+
+模型必须支持图片输入，否则“大模型图片识别”模式无法工作。
 
 ## 使用步骤
 
@@ -116,6 +150,19 @@ A: 筛选流程会自动尝试点击关闭按钮或按 `Esc` 关闭提示卡。�
 ### Q: 筛选速度很慢？
 A: 为降低触发风控概率，链接之间会随机间隔1-3秒，每20条会短暂休息。
 
+### Q: GitHub Pages 能直接部署这个项目吗？
+A: 不能。这个项目需要 Python 后端、浏览器自动化、文件上传和 Ollama 模型服务，GitHub Pages 只能托管静态网页。要让别人点链接直接使用，需要部署到 Render、Railway、Fly.io、VPS 等能运行 Python 服务和浏览器的环境。
+
+### Q: 远程服务器部署要注意什么？
+A: 需要服务器能安装 Chrome/Chromium，并能访问 Ollama 服务。如果 Ollama 跑在另一台机器上，把 `.env` 的 `OLLAMA_BASE_URL` 改成对应地址。无头服务器通常需要设置：
+
+```env
+BROWSER_HEADLESS=true
+CHROME_PATH=/usr/bin/google-chrome
+```
+
 ## 注意事项
 
 ⚠️ 本工具仅供学习研究使用，请遵守小红书平台规则，不要频繁大量访问。
+
+⚠️ 不要提交 `.env`、`uploads/`、`outputs/`、`screenshots/`、`browser_data/` 等运行数据；这些目录已在 `.gitignore` 中排除。
